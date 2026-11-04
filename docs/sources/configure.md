@@ -4,6 +4,11 @@ menuTitle: Configure
 description: Learn how to configure the Infinity data source plugin for Grafana
 aliases:
   - infinity/configure
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/authentication/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/configuration/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/configuration/network/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/provisioning/
 keywords:
   - data source
   - infinity
@@ -22,6 +27,7 @@ labels:
     - oss
     - enterprise
     - cloud
+review_date: 2026-06-25
 weight: 20
 ---
 
@@ -42,7 +48,7 @@ This page explains how to:
 
 Before you configure the Infinity data source, you need:
 
-- Grafana version 10.0 or later
+- Grafana version 11.6 or later
 - [Organization admin permissions](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/#organization-roles) in Grafana, or equivalent [RBAC permissions](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/access-control/) to manage data sources
 - Network access from Grafana to your target API endpoints
 - Appropriate credentials for authenticated endpoints (API keys, OAuth credentials, etc.)
@@ -291,7 +297,7 @@ If you use PDC with AWS Authentication, the PDC agent must allow internet egress
 The settings for the Infinity data source on the configuration page don't automatically validate the URL. To ensure that your settings, including authentication and API keys, are valid, you need to enable the custom health check in the **Health check** section of the configuration page.
 
 {{< admonition type="note" >}}
-The custom health check supports only HTTP GET methods. It verifies the response status code, specifically looking for an HTTP 200 status, but doesn't check the content of the response.
+The custom health check only verifies the response status code, specifically looking for an HTTP 200 status, but doesn't check the content of the response.
 {{< /admonition >}}
 {{< /shared >}}
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -165,7 +164,7 @@ func applyOAuthJWT(ctx context.Context, httpClient *http.Client, settings models
 		jwtConfig := jwt.Config{
 			Email:        settings.OAuth2Settings.Email,
 			TokenURL:     settings.OAuth2Settings.TokenURL,
-			PrivateKey:   []byte(strings.ReplaceAll(settings.OAuth2Settings.PrivateKey, "\\n", "\n")),
+			PrivateKey:   []byte(settings.OAuth2Settings.PrivateKey),
 			PrivateKeyID: settings.OAuth2Settings.PrivateKeyID,
 			Subject:      settings.OAuth2Settings.Subject,
 			Scopes:       []string{},
@@ -247,11 +246,13 @@ func applyAWSAuth(ctx context.Context, httpClient *http.Client, settings models.
 		}
 		httpOptions := httpclient.Options{
 			SigV4: &httpclient.SigV4Config{
-				AccessKey: settings.AWSAccessKey,
-				SecretKey: settings.AWSSecretKey,
-				AuthType:  string(authType),
-				Region:    region,
-				Service:   service,
+				AuthType:      string(authType),
+				AccessKey:     settings.AWSAccessKey,
+				SecretKey:     settings.AWSSecretKey,
+				Region:        region,
+				Service:       service,
+				AssumeRoleARN: settings.AWSSettings.AssumeRoleARN,
+				ExternalID:    settings.AWSSettings.ExternalID,
 			},
 		}
 		acceptHeaderMiddleware := func(req *http.Request) (*http.Response, error) {

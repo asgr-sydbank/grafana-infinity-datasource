@@ -14,6 +14,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const PluginID = "yesoreyeram-infinity-datasource"
+
 const (
 	AuthenticationMethodNone         = "none"
 	AuthenticationMethodBasic        = "basicAuth"
@@ -74,13 +76,16 @@ type GitHubSettings struct {
 type AWSAuthType string
 
 const (
-	AWSAuthTypeKeys AWSAuthType = "keys"
+	AWSAuthTypeKeys    AWSAuthType = "keys"
+	AWSAuthTypeDefault AWSAuthType = "default"
 )
 
 type AWSSettings struct {
-	AuthType AWSAuthType `json:"authType"`
-	Region   string      `json:"region"`
-	Service  string      `json:"service"`
+	AuthType      AWSAuthType `json:"authType"`
+	Region        string      `json:"region"`
+	Service       string      `json:"service"`
+	AssumeRoleARN string      `json:"assumeRoleArn,omitempty"`
+	ExternalID    string      `json:"externalId,omitempty"`
 }
 
 type ProxyType string
@@ -100,50 +105,51 @@ const (
 )
 
 type InfinitySettings struct {
-	UID                       string
-	Name                      string
-	IsMock                    bool
-	AuthenticationMethod      string
-	OAuth2Settings            OAuth2Settings
-	GitHubSettings            GitHubSettings
-	BearerToken               string
-	ApiKeyKey                 string
-	ApiKeyType                string
-	ApiKeyValue               string
-	AWSSettings               AWSSettings
-	AWSAccessKey              string
-	AWSSecretKey              string
-	URL                       string
-	BasicAuthEnabled          bool
-	UserName                  string
-	Password                  string
-	ForwardOauthIdentity      bool
-	CustomHeaders             map[string]string
-	SecureQueryFields         map[string]string
-	InsecureSkipVerify        bool
-	ServerName                string
-	TimeoutInSeconds          int64
-	TLSClientAuth             bool
-	TLSAuthWithCACert         bool
-	TLSCACert                 string
-	TLSClientCert             string
-	TLSClientKey              string
-	ProxyType                 ProxyType
-	ProxyUrl                  string
-	ProxyUserName             string
-	ProxyUserPassword         string
-	AllowedHosts              []string
-	ReferenceData             []RefData
-	CustomHealthCheckEnabled  bool
-	CustomHealthCheckUrl      string
-	AzureBlobCloudType        string
-	AzureBlobAccountUrl       string
-	AzureBlobAccountName      string
-	AzureBlobAccountKey       string
-	UnsecuredQueryHandling    UnsecuredQueryHandlingMode
-	PathEncodedURLsEnabled    bool
-	IgnoreStatusCodeCheck     bool
-	AllowDangerousHTTPMethods bool
+	UID                         string
+	Name                        string
+	IsMock                      bool
+	AuthenticationMethod        string
+	OAuth2Settings              OAuth2Settings
+	BearerToken                 string
+	ApiKeyKey                   string
+	ApiKeyType                  string
+	ApiKeyValue                 string
+	AWSSettings                 AWSSettings
+	AWSAccessKey                string
+	AWSSecretKey                string
+	URL                         string
+	BasicAuthEnabled            bool
+	GitHubSettings            	GitHubSettings
+	UserName                    string
+	Password                    string
+	ForwardOauthIdentity        bool
+	CustomHeaders               map[string]string
+	SecureQueryFields           map[string]string
+	InsecureSkipVerify          bool
+	ServerName                  string
+	TimeoutInSeconds            int64
+	TLSClientAuth               bool
+	TLSAuthWithCACert           bool
+	TLSCACert                   string
+	TLSClientCert               string
+	TLSClientKey                string
+	ProxyType                   ProxyType
+	ProxyUrl                    string
+	ProxyUserName               string
+	ProxyUserPassword           string
+	AllowedHosts                []string
+	ReferenceData               []RefData
+	CustomHealthCheckEnabled    bool
+	CustomHealthCheckUrl        string
+	CustomHealthCheckUrlOptions URLOptions
+	AzureBlobCloudType          string
+	AzureBlobAccountUrl         string
+	AzureBlobAccountName        string
+	AzureBlobAccountKey         string
+	UnsecuredQueryHandling      UnsecuredQueryHandlingMode
+	PathEncodedURLsEnabled      bool
+	IgnoreStatusCodeCheck       bool
+	AllowDangerousHTTPMethods   bool
 	// ProxyOpts is used for Secure Socks Proxy configuration
 	ProxyOpts httpclient.Options
 	// Specific cookies included by Grafana for forwarding
@@ -182,12 +188,18 @@ func (s *InfinitySettings) Validate() error {
 		}
 		return nil
 	}
-	if s.AuthenticationMethod == AuthenticationMethodAWS && s.AWSSettings.AuthType == AWSAuthTypeKeys {
-		if strings.TrimSpace(s.AWSAccessKey) == "" {
-			return ErrInvalidConfigAWSAccessKey
+	if s.AuthenticationMethod == AuthenticationMethodAWS {
+		authType := s.AWSSettings.AuthType
+		if authType == "" {
+			authType = AWSAuthTypeKeys
 		}
-		if strings.TrimSpace(s.AWSSecretKey) == "" {
-			return ErrInvalidConfigAWSSecretKey
+		if authType == AWSAuthTypeKeys {
+			if strings.TrimSpace(s.AWSAccessKey) == "" {
+				return ErrInvalidConfigAWSAccessKey
+			}
+			if strings.TrimSpace(s.AWSSecretKey) == "" {
+				return ErrInvalidConfigAWSSecretKey
+			}
 		}
 		return nil
 	}
@@ -271,32 +283,52 @@ type RefData struct {
 	Data string `json:"data,omitempty"`
 }
 
+// InfinitySettingsJson is the runtime data model for the datasource's jsonData.
+//
+// Adding a new config property (workflow):
+//  1. Add the field + json tag here and read it in LoadSettings below.
+//  2. Add a matching field to pkg/pluginschema/dsconfig.json with the
+//     same `key` and `target: "jsonData"` (the schema is the single source of
+//     truth for editors, validation, and docs). Make sure `valueType` matches
+//     the Go kind (string→string, bool→boolean, int*/float*→number,
+//     slice→array, struct/map→object).
+//  3. Regenerate the SDK bundle: `go generate ./pkg/pluginschema` and commit
+//     the updated pkg/pluginschema/apiserver.schema.json.
+//
+// For a secret instead, read it via config.DecryptedSecureJSONData["yourKey"]
+// in LoadSettings, add a `target: "secureJsonData"` field to the schema, and
+// add "yourKey" to the loadKeys list in TestSecureValuesMatchLoadSettings.
+//
+// The drift guards in pkg/pluginschema/schema_test.go fail if these get out of
+// sync (key set, JSON type, and secret list are all checked).
 type InfinitySettingsJson struct {
-	IsMock                    bool           `json:"is_mock,omitempty"`
-	AuthenticationMethod      string         `json:"auth_method,omitempty"`
-	APIKeyKey                 string         `json:"apiKeyKey,omitempty"`
-	APIKeyType                string         `json:"apiKeyType,omitempty"`
-	OAuth2Settings            OAuth2Settings `json:"oauth2,omitempty"`
-	GitHubSettings            GitHubSettings `json:"github,omitempty"`
-	AWSSettings               AWSSettings    `json:"aws,omitempty"`
-	ForwardOauthIdentity      bool           `json:"oauthPassThru,omitempty"`
-	InsecureSkipVerify        bool           `json:"tlsSkipVerify,omitempty"`
-	ServerName                string         `json:"serverName,omitempty"`
-	TLSClientAuth             bool           `json:"tlsAuth,omitempty"`
-	TLSAuthWithCACert         bool           `json:"tlsAuthWithCACert,omitempty"`
-	TimeoutInSeconds          int64          `json:"timeoutInSeconds,omitempty"`
-	ProxyType                 ProxyType      `json:"proxy_type,omitempty"`
-	ProxyUrl                  string         `json:"proxy_url,omitempty"`
-	ProxyUserName             string         `json:"proxy_username,omitempty"`
-	ReferenceData             []RefData      `json:"refData,omitempty"`
-	CustomHealthCheckEnabled  bool           `json:"customHealthCheckEnabled,omitempty"`
-	CustomHealthCheckUrl      string         `json:"customHealthCheckUrl,omitempty"`
-	AzureBlobCloudType        string         `json:"azureBlobCloudType,omitempty"`
-	AzureBlobAccountUrl       string         `json:"azureBlobAccountUrl,omitempty"`
-	AzureBlobAccountName      string         `json:"azureBlobAccountName,omitempty"`
-	PathEncodedURLsEnabled    bool           `json:"pathEncodedUrlsEnabled,omitempty"`
-	IgnoreStatusCodeCheck     bool           `json:"ignoreStatusCodeCheck,omitempty"`
-	AllowDangerousHTTPMethods bool           `json:"allowDangerousHTTPMethods,omitempty"`
+	IsMock                      bool           `json:"is_mock,omitempty"`
+	AuthenticationMethod        string         `json:"auth_method,omitempty"`
+	APIKeyKey                   string         `json:"apiKeyKey,omitempty"`
+	APIKeyType                  string         `json:"apiKeyType,omitempty"`
+	OAuth2Settings              OAuth2Settings `json:"oauth2,omitempty"`
+	GitHubSettings              GitHubSettings `json:"github,omitempty"`
+	AWSSettings                 AWSSettings    `json:"aws,omitempty"`
+	ForwardOauthIdentity        bool           `json:"oauthPassThru,omitempty"`
+	InsecureSkipVerify          bool           `json:"tlsSkipVerify,omitempty"`
+	ServerName                  string         `json:"serverName,omitempty"`
+	TLSClientAuth               bool           `json:"tlsAuth,omitempty"`
+	TLSAuthWithCACert           bool           `json:"tlsAuthWithCACert,omitempty"`
+	TimeoutInSeconds            int64          `json:"timeoutInSeconds,omitempty"`
+	ProxyType                   ProxyType      `json:"proxy_type,omitempty"`
+	ProxyUrl                    string         `json:"proxy_url,omitempty"`
+	ProxyUserName               string         `json:"proxy_username,omitempty"`
+	ReferenceData               []RefData      `json:"refData,omitempty"`
+	GlobalQueries             []any          `json:"global_queries,omitempty"`
+	CustomHealthCheckEnabled    bool           `json:"customHealthCheckEnabled,omitempty"`
+	CustomHealthCheckUrl        string         `json:"customHealthCheckUrl,omitempty"`
+	CustomHealthCheckUrlOptions URLOptions     `json:"customHealthCheckUrlOptions,omitempty"`
+	AzureBlobCloudType          string         `json:"azureBlobCloudType,omitempty"`
+	AzureBlobAccountUrl         string         `json:"azureBlobAccountUrl,omitempty"`
+	AzureBlobAccountName        string         `json:"azureBlobAccountName,omitempty"`
+	PathEncodedURLsEnabled      bool           `json:"pathEncodedUrlsEnabled,omitempty"`
+	IgnoreStatusCodeCheck       bool           `json:"ignoreStatusCodeCheck,omitempty"`
+	AllowDangerousHTTPMethods   bool           `json:"allowDangerousHTTPMethods,omitempty"`
 	// Security
 	AllowedHosts           []string                   `json:"allowedHosts,omitempty"`
 	UnsecuredQueryHandling UnsecuredQueryHandlingMode `json:"unsecuredQueryHandling,omitempty"`
@@ -371,6 +403,7 @@ func LoadSettings(ctx context.Context, config backend.DataSourceInstanceSettings
 	settings.ReferenceData = infJson.ReferenceData
 	settings.CustomHealthCheckEnabled = infJson.CustomHealthCheckEnabled
 	settings.CustomHealthCheckUrl = infJson.CustomHealthCheckUrl
+	settings.CustomHealthCheckUrlOptions = infJson.CustomHealthCheckUrlOptions
 	settings.AzureBlobCloudType = infJson.AzureBlobCloudType
 	settings.AzureBlobAccountUrl = infJson.AzureBlobAccountUrl
 	settings.AzureBlobAccountName = infJson.AzureBlobAccountName
@@ -381,16 +414,16 @@ func LoadSettings(ctx context.Context, config backend.DataSourceInstanceSettings
 		settings.OAuth2Settings.ClientSecret = val
 	}
 	if val, ok := config.DecryptedSecureJSONData["oauth2JWTPrivateKey"]; ok {
-		settings.OAuth2Settings.PrivateKey = val
+		settings.OAuth2Settings.PrivateKey = normalizePEMContent(val)
 	}
 	if val, ok := config.DecryptedSecureJSONData["tlsCACert"]; ok {
-		settings.TLSCACert = val
+		settings.TLSCACert = normalizePEMContent(val)
 	}
 	if val, ok := config.DecryptedSecureJSONData["tlsClientCert"]; ok {
-		settings.TLSClientCert = val
+		settings.TLSClientCert = normalizePEMContent(val)
 	}
 	if val, ok := config.DecryptedSecureJSONData["tlsClientKey"]; ok {
-		settings.TLSClientKey = val
+		settings.TLSClientKey = normalizePEMContent(val)
 	}
 	if val, ok := config.DecryptedSecureJSONData["bearerToken"]; ok {
 		settings.BearerToken = val
