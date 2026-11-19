@@ -1,4 +1,4 @@
-import type { InfinityQuery } from '@/types';
+import type { InfinityQuery, InfinityURLOptions } from '@/types';
 import type { DataSourceInstanceSettings, DataSourceJsonData } from '@grafana/data';
 
 //#region Config
@@ -29,10 +29,13 @@ export type OAuth2Props = {
   authHeader?: string;
   tokenTemplate?: string;
 };
+export type AWSAuthType = 'keys' | 'default';
 export type AWSAuthProps = {
-  authType?: 'keys';
+  authType?: AWSAuthType;
   region?: string;
   service?: string;
+  assumeRoleArn?: string;
+  externalId?: string;
 };
 export type InfinityReferenceData = { name: string; data: string };
 export type ProxyType = 'none' | 'env' | 'url';
@@ -59,6 +62,7 @@ export interface InfinityOptions extends DataSourceJsonData {
   refData?: InfinityReferenceData[];
   customHealthCheckEnabled?: boolean;
   customHealthCheckUrl?: string;
+  customHealthCheckUrlOptions?: InfinityURLOptions;
   azureBlobCloudType?: AzureBlobCloudType;
   azureBlobAccountUrl?: string;
   azureBlobAccountName?: string;

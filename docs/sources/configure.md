@@ -4,6 +4,11 @@ menuTitle: Configure
 description: Learn how to configure the Infinity data source plugin for Grafana
 aliases:
   - infinity/configure
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/authentication/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/configuration/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/configuration/network/
+  - /docs/plugins/yesoreyeram-infinity-datasource/latest/setup/provisioning/
 keywords:
   - data source
   - infinity
@@ -22,6 +27,7 @@ labels:
     - oss
     - enterprise
     - cloud
+review_date: 2026-06-25
 weight: 20
 ---
 
@@ -42,7 +48,7 @@ This page explains how to:
 
 Before you configure the Infinity data source, you need:
 
-- Grafana version 10.0 or later
+- Grafana version 11.6 or later
 - [Organization admin permissions](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/#organization-roles) in Grafana, or equivalent [RBAC permissions](https://grafana.com/docs/grafana/latest/administration/roles-and-permissions/access-control/) to manage data sources
 - Network access from Grafana to your target API endpoints
 - Appropriate credentials for authenticated endpoints (API keys, OAuth credentials, etc.)
@@ -73,7 +79,7 @@ The following sections describe the available configuration options for the Infi
 
 | Setting           | Description                                                                                                                                                                                                                                                 |
 |-------------------|-------------                                                                                                                                                                                                                                                |
-| **Base URL**      | Optional. The base URL for all queries. If configured, this URL is prefixed to all query URLs. For example, if you set `https://example.com/api` as the base URL and `/users` as the query URL, the final URL will be `https://example.com/api/users`.      |
+| **Base URL**      | Optional. The base URL for all queries. If configured, this URL is prefixed to all query URLs. For example, if you set `https://example.com/api` as the base URL and `/users` as the query URL, the final URL will be `https://example.com/api/users`. Query URLs must use the same scheme, host, and port as the base URL. Queries that resolve to a different host are rejected.      |
 | **Allowed hosts** | A list of hosts that the data source is allowed to connect to. Required when authentication, custom headers, or TLS certificates are configured. If no allowed hosts are specified and none of these features are in use, all hosts are allowed by default. |
 
 For more information about URL configuration, refer to [URL reference](/docs/plugins/yesoreyeram-infinity-datasource/latest/references/url/).
@@ -291,7 +297,7 @@ If you use PDC with AWS Authentication, the PDC agent must allow internet egress
 The settings for the Infinity data source on the configuration page don't automatically validate the URL. To ensure that your settings, including authentication and API keys, are valid, you need to enable the custom health check in the **Health check** section of the configuration page.
 
 {{< admonition type="note" >}}
-The custom health check supports only HTTP GET methods. It verifies the response status code, specifically looking for an HTTP 200 status, but doesn't check the content of the response.
+The custom health check only verifies the response status code, specifically looking for an HTTP 200 status, but doesn't check the content of the response.
 {{< /admonition >}}
 {{< /shared >}}
 

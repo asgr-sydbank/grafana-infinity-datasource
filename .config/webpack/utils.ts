@@ -51,7 +51,8 @@ export async function getEntries() {
   const plugins = await Promise.all(
     pluginsJson.map((pluginJson) => {
       const folder = path.dirname(pluginJson);
-      return glob(`${folder}/module.{ts,tsx,js,jsx}`, { absolute: true });
+      const modulePattern = path.posix.join(folder.replaceAll(path.sep, '/'), 'module.{ts,tsx,js,jsx}');
+      return glob(modulePattern, { absolute: true });
     })
   );
 

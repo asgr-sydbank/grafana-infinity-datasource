@@ -1,4 +1,5 @@
 import webpack, { Configuration } from 'webpack';
+import CopyWebpackPlugin from 'copy-webpack-plugin';
 import { mergeWithRules } from 'webpack-merge';
 import path from 'path';
 import grafanaConfig from './.config/webpack/webpack.config';
@@ -10,6 +11,30 @@ const config = async (env: any): Promise<Configuration> => {
       new webpack.ProvidePlugin({
         Buffer: ['buffer', 'Buffer'],
       }),
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: '../pkg/schema/dsconfig.json',
+            to: './schema/dsconfig.json',
+            noErrorOnMissing: true,
+          },
+          {
+            from: '../pkg/schema/schema.gen.json',
+            to: './schema/v0alpha1.json',
+            noErrorOnMissing: true,
+          },
+          {
+            from: '../pkg/schema/settings.gen.json',
+            to: './schema/v0alpha1/settings.json',
+            noErrorOnMissing: true,
+          },
+          {
+            from: '../pkg/schema/settings.examples.gen.json',
+            to: './schema/v0alpha1/settings.examples.json',
+            noErrorOnMissing: true,
+          },
+        ],
+      }),
     ],
     module: {
       rules: [
@@ -20,6 +45,8 @@ const config = async (env: any): Promise<Configuration> => {
     },
     resolve: {
       alias: {
+        // uql@0.0.24 imports csv-parse/lib/sync (v4); csv-parse@7 removed that path.
+        'csv-parse/lib/sync': path.resolve(process.cwd(), 'src/shims/csv-parse-lib-sync.js'),
         '@/components': path.resolve(process.cwd(), 'src/components/'),
         '@/editors': path.resolve(process.cwd(), 'src/editors/'),
         '@/utils': path.resolve(process.cwd(), 'src/utils/'),
