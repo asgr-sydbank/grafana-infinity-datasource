@@ -1,0 +1,35 @@
+name: Artifactory connectivity
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Ping Artifactory
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check Artifactory ping endpoint
+        env:
+          ARTIFACTORY_URL: ${{ vars.ARTIFACTORY_URL }}
+        shell: bash
+        run: |
+          if [[ -z "$ARTIFACTORY_URL" ]]; then
+            echo "::error::Set the ARTIFACTORY_URL repository variable to the Artifactory base URL, including /artifactory."
+            exit 1
+          fi
+          if [[ "$ARTIFACTORY_URL" != https://* ]]; then
+            echo "::error::ARTIFACTORY_URL must use HTTPS."
+            exit 1
+          fi
+
+          status=$(curl --silent --show-error --connect-timeout 10 --max-time 30 \
+            --output /dev/null --write-out '%{http_code}' \
+            "${ARTIFACTORY_URL%/}/api/system/ping")
+          if [[ "$status" != 200 ]]; then
+            echo "::error::Artifactory ping returned HTTP $status; expected 200."
+            exit 1
+          fi
+          echo "Artifactory ping returned HTTP 200."
