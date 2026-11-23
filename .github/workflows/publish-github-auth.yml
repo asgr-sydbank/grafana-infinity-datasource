@@ -1,4 +1,4 @@
-name: Build and publish GitHub authentication plugin
+name: Build and publish GitHub authentication image
 
 on:
   push:
@@ -53,49 +53,53 @@ jobs:
           go run github.com/magefile/mage -v build:linux
           go run github.com/magefile/mage -v build:linuxarm64
 
-      - name: Package plugin
-        id: package
+      - name: Prepare image
+        id: image
         shell: bash
         run: |
-          plugin_id="yesoreyeram-infinity-datasource"
           version=$(node -p "require('./package.json').version")
-          if [[ ! "$version" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]]; then
-            echo "::error::Invalid plugin version."
+          if [[ ! "$version" =~ ^[0-9A-Za-z_][0-9A-Za-z_.-]*$ ]] || (( ${#version} + 1 + ${#GITHUB_SHA} > 128 )); then
+            echo "::error::Plugin version cannot be used in a Docker image tag."
             exit 1
           fi
           for file in module.js plugin.json gpx_infinity_linux_amd64 gpx_infinity_linux_arm64; do
             test -s "dist/$file"
           done
           chmod 755 dist/gpx_infinity_linux_amd64 dist/gpx_infinity_linux_arm64
-          cp -a dist "$RUNNER_TEMP/$plugin_id"
-          archive="$RUNNER_TEMP/$plugin_id-$version-linux.zip"
-          (cd "$RUNNER_TEMP" && zip -qr "$archive" "$plugin_id")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/grafana-image"
+          cp -a dist "$RUNNER_TEMP/grafana-image/dist"
+          cp docker/Dockerfile "$RUNNER_TEMP/grafana-image/Dockerfile"
+          echo "tag=artifactory.sydbank.dev/iu-docker-snapshot-local/grafana-infinity-ghauth:${version}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload to Artifactory
+      - name: Check Artifactory credentials
         env:
-          ARTIFACTORY_URL: ${{ vars.ARTIFACTORY_URL }}
-          ARTIFACTORY_REPOSITORY: ${{ vars.ARTIFACTORY_REPOSITORY }}
+          ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
           ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
-          PLUGIN_VERSION: ${{ steps.package.outputs.version }}
-          ARCHIVE: ${{ steps.package.outputs.archive }}
         shell: bash
         run: |
-          if [[ "$ARTIFACTORY_URL" != https://* ]]; then
-            echo "::error::Set ARTIFACTORY_URL to the HTTPS Artifactory base URL, including /artifactory."
-            exit 1
-          fi
-          if [[ ! "$ARTIFACTORY_REPOSITORY" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
-            echo "::error::Set ARTIFACTORY_REPOSITORY to a valid Generic repository key."
+          if [[ -z "$ARTIFACTORY_USERNAME" ]]; then
+            echo "::error::Set the ARTIFACTORY_USERNAME repository variable."
             exit 1
           fi
           if [[ -z "$ARTIFACTORY_TOKEN" ]]; then
             echo "::error::Set the ARTIFACTORY_TOKEN secret."
             exit 1
           fi
-          plugin_id="yesoreyeram-infinity-datasource"
-          destination="${ARTIFACTORY_URL%/}/${ARTIFACTORY_REPOSITORY}/${plugin_id}/${PLUGIN_VERSION}/${GITHUB_SHA}/${plugin_id}-${PLUGIN_VERSION}-linux.zip"
-          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 300 \
-            --header "Authorization: Bearer $ARTIFACTORY_TOKEN" \
-            --upload-file "$ARCHIVE" "$destination"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Artifactory
+        uses: docker/login-action@v3
+        with:
+          registry: artifactory.sydbank.dev
+          username: ${{ vars.ARTIFACTORY_USERNAME }}
+          password: ${{ secrets.ARTIFACTORY_TOKEN }}
+
+      - name: Build and push Linux image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ runner.temp }}/grafana-image
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.tag }}

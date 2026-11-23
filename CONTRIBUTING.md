@@ -29,6 +29,11 @@ Once you clone the repo locally in the grafana's plugin folder. Do the following
 - `mage -v` - This will help to build the backend part of the plugin. Do this once if you are contributing only the frontend. There is no significant code is in the backend. So no much changes expected
 - `docker-compose up` - To run the plugin with grafana locally. ( use infinity:infinity as the credentials ). You can also enable traces and logs with debug mode. Refer the **Setting up grafana in debug mode** section below
 
+## Publishing the GitHub authentication image
+
+Pushes to `copilot/add-github-authentication-type` in the `asgr-sydbank` fork test the plugin and publish a Linux amd64/arm64 Grafana image to `artifactory.sydbank.dev/iu-docker-snapshot-local/grafana-infinity-ghauth:<plugin-version>-<full-commit-sha>`.
+Configure the `ARTIFACTORY_USERNAME` repository variable and the `ARTIFACTORY_TOKEN` Actions secret with credentials that can pull the base image and push to the destination Docker repository. The image enables loading this unsigned Infinity plugin.
+
 ## Dependencies
 
 Note that some packages have no direct `import` in `src/` but are still required:
