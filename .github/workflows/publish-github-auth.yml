@@ -57,9 +57,16 @@ jobs:
         id: image
         shell: bash
         run: |
-          version=$(node -p "require('./package.json').version")
-          if [[ ! "$version" =~ ^[0-9A-Za-z_][0-9A-Za-z_.-]*$ ]] || (( ${#version} + 1 + ${#GITHUB_SHA} > 128 )); then
-            echo "::error::Plugin version cannot be used in a Docker image tag."
+          base_image=$(awk '$1 == "FROM" { print $2; exit }' docker/Dockerfile)
+          if [[ ! "$base_image" =~ ^artifactory[.]sydbank[.]dev/docker-hub/grafana/grafana:([0-9][0-9A-Za-z_.-]*)$ ]]; then
+            echo "::error::Cannot determine the Grafana version from docker/Dockerfile."
+            exit 1
+          fi
+          grafana_version=${BASH_REMATCH[1]}
+          plugin_version=$(node -p "require('./package.json').version")
+          tag="${grafana_version}-infinity-${plugin_version}-ghauth"
+          if [[ ! "$tag" =~ ^[0-9A-Za-z_][0-9A-Za-z_.-]*$ ]] || (( ${#tag} > 128 )); then
+            echo "::error::Grafana and plugin versions cannot be used in a Docker image tag."
             exit 1
           fi
           for file in module.js plugin.json gpx_infinity_linux_amd64 gpx_infinity_linux_arm64; do
@@ -69,7 +76,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/grafana-image"
           cp -a dist "$RUNNER_TEMP/grafana-image/dist"
           cp docker/Dockerfile "$RUNNER_TEMP/grafana-image/Dockerfile"
-          echo "tag=artifactory.sydbank.dev/iu-docker-release-local/grafana-infinity-ghauth:${version}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=artifactory.sydbank.dev/iu-docker-release-local/grafana-infinity-ghauth:${tag}" >> "$GITHUB_OUTPUT"
 
       - name: Check Artifactory credentials
         env:
