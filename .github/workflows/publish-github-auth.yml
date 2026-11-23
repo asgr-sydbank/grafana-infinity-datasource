@@ -69,7 +69,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/grafana-image"
           cp -a dist "$RUNNER_TEMP/grafana-image/dist"
           cp docker/Dockerfile "$RUNNER_TEMP/grafana-image/Dockerfile"
-          echo "tag=artifactory.sydbank.dev/iu-docker-snapshot-local/grafana-infinity-ghauth:${version}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=artifactory.sydbank.dev/iu-docker-release-local/grafana-infinity-ghauth:${version}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Check Artifactory credentials
         env:
