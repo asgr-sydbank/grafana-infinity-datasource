@@ -31,7 +31,7 @@ Once you clone the repo locally in the grafana's plugin folder. Do the following
 
 ## Publishing the GitHub authentication image
 
-Pushes to `copilot/add-github-authentication-type` in the `asgr-sydbank` fork test the plugin and publish a Linux amd64/arm64 Grafana image to `artifactory.sydbank.dev/iu-docker-release-local/grafana-infinity-ghauth:<grafana-version>-infinity-<plugin-version>-ghauth`. Pushes with the same Grafana and plugin versions overwrite the same tag.
+Pushes to `copilot/add-github-authentication-type` in the `asgr-sydbank` fork test the plugin and publish a Linux amd64/arm64 Grafana image to `artifactory.sydbank.dev/iu-docker-release-local/grafana-infinity-ghauth:<grafana-version>-infinity-<plugin-version>-ghauth-<7-character-commit-hash>`.
 Configure the `ARTIFACTORY_USERNAME` repository variable and the `ARTIFACTORY_TOKEN` Actions secret with credentials that can pull the base image and push to the destination Docker repository. The image enables loading this unsigned Infinity plugin.
 
 ## Dependencies
